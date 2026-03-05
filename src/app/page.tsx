@@ -23,6 +23,20 @@ export default function Home() {
   const [minGpa, setMinGpa] = useState(0);
   const [selectedType, setSelectedType] = useState("All");
   const [user, setUser] = useState<User | null>(null);
+  const [favouriteIds, setFavouriteIds] = useState<number[]>([]);
+
+  const fetchFavourites = useCallback(async (userId: string) => {
+    const { data, error } = await supabase
+      .from("favourites")
+      .select("university_id")
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("Error fetching favourites:", error);
+    } else {
+      setFavouriteIds(data?.map((f) => f.university_id) || []);
+    }
+  }, []);
 
   const fetchUniversities = useCallback(async () => {
     const { data, error } = await supabase
@@ -42,26 +56,34 @@ export default function Home() {
   }, [fetchUniversities]);
 
   useEffect(() => {
-  supabase.auth.getUser().then(({ data }) => {
-    setUser(data.user);
-  });
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+      if (data.user) {
+        void fetchFavourites(data.user.id);
+      }
+    });
 
-  const { data: listener } = supabase.auth.onAuthStateChange(
-    (_event, session) => {
-      setUser(session?.user ?? null);
-    }
-  );
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          void fetchFavourites(session.user.id);
+        } else {
+          setFavouriteIds([]);
+        }
+      }
+    );
 
-  return () => {
-    listener.subscription.unsubscribe();
-  };
-}, []);
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, [fetchFavourites]);
 
 
 
   const states = Array.from(
-  new Set(universities.map((uni) => uni.state))
-);
+    new Set(universities.map((uni) => uni.state.trim()))
+  ).sort();
   const filtered = universities.filter((uni) => {
   const matchesName =
     uni.name?.toLowerCase().includes(query.toLowerCase());
@@ -202,15 +224,33 @@ export default function Home() {
   {user && (
     <button
       onClick={async () => {
-        await supabase.from("favourites").insert({
-          user_id: user.id,
-          university_id: uni.id,
-        });
-        alert("Added to favourites ⭐");
+        const isFav = favouriteIds.includes(uni.id);
+        if (isFav) {
+          const { error } = await supabase
+            .from("favourites")
+            .delete()
+            .eq("user_id", user.id)
+            .eq("university_id", uni.id);
+          if (!error) {
+            setFavouriteIds((prev) => prev.filter((id) => id !== uni.id));
+          }
+        } else {
+          const { error } = await supabase
+            .from("favourites")
+            .insert({
+              user_id: user.id,
+              university_id: uni.id,
+            });
+          if (!error) {
+            setFavouriteIds((prev) => [...prev, uni.id]);
+          }
+        }
       }}
-      className="text-yellow-500 text-2xl hover:scale-110 transition"
+      className={`${
+        favouriteIds.includes(uni.id) ? "text-yellow-500" : "text-gray-300"
+      } text-2xl hover:scale-110 transition`}
     >
-      ⭐
+      ★
     </button>
   )}
 </div>

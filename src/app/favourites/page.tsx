@@ -88,9 +88,27 @@ export default function FavouritesPage() {
           {favourites.map((fav) => (
             <div
               key={fav.university_id}
-              className="bg-white p-6 rounded-2xl shadow-md hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+              className="bg-white p-6 rounded-2xl shadow-md hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 relative group"
             >
-              <h2 className="text-2xl font-semibold text-gray-800 mb-2">
+              <button
+                onClick={async () => {
+                  const { error } = await supabase
+                    .from("favourites")
+                    .delete()
+                    .eq("user_id", user.id)
+                    .eq("university_id", fav.university_id);
+                  if (!error) {
+                    setFavourites((prev) =>
+                      prev.filter((f) => f.university_id !== fav.university_id)
+                    );
+                  }
+                }}
+                className="absolute top-4 right-4 text-yellow-500 text-2xl hover:scale-110 transition opacity-0 group-hover:opacity-100"
+                title="Remove from favourites"
+              >
+                ★
+              </button>
+              <h2 className="text-2xl font-semibold text-gray-800 mb-2 pr-8">
                 {fav.universities.name}
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-pink-600">
