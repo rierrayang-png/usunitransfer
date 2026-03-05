@@ -4,6 +4,34 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 
 export default function FavouritesPage() {
+  const [favourites, setFavourites] = useState<Favourite[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+
+  const fetchFavourites = useCallback(async (userId: string) => {
+    const { data, error } = await supabase
+      .from("favourites")
+      .select(`
+        university_id,
+        universities (
+          id,
+          name,
+          state,
+          min_gpa,
+          accepts_transfer,
+          intl_transfer,
+          transfer_url,
+          type
+        )
+      `)
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("Error fetching favourites:", error);
+    } else {
+      // Cast the joined data to our Favourite interface
+      setFavourites((data as unknown as Favourite[]) || []);
+    }
+  }, []);
   const [favourites, setFavourites] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
 
@@ -66,6 +94,64 @@ setFavourites(data || []);
           {favourites.map((fav) => (
             <div
               key={fav.university_id}
+              className="bg-white p-6 rounded-2xl shadow-md hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 relative group"
+            >
+              <button
+                onClick={async () => {
+                  const { error } = await supabase
+                    .from("favourites")
+                    .delete()
+                    .eq("user_id", user.id)
+                    .eq("university_id", fav.university_id);
+                  if (!error) {
+                    setFavourites((prev) =>
+                      prev.filter((f) => f.university_id !== fav.university_id)
+                    );
+                  }
+                }}
+                className="absolute top-4 right-4 flex items-center gap-1 px-3 py-1 bg-rose-50 text-rose-500 rounded-full border border-rose-100 hover:bg-rose-100 transition shadow-sm group/btn"
+                title="Remove from favourites"
+              >
+                <span className="text-xl group-hover/btn:scale-110 transition">💔</span>
+                <span className="text-sm font-medium">Remove</span>
+              </button>
+              <h2 className="text-2xl font-semibold text-gray-800 mb-2 pr-8">
+                {fav.universities.name?.trim()}
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-pink-600">
+                <p className="flex items-center gap-2">
+                  <span className="text-xl">📍</span>
+                  <strong>State:</strong> {fav.universities.state?.trim()}
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="text-xl">📊</span>
+                  <strong>Min GPA:</strong> {fav.universities.min_gpa}
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="text-xl">🏛️</span>
+                  <strong>Type:</strong> {fav.universities.type || "N/A"}
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="text-xl">🔄</span>
+                  <strong>Transfer:</strong>{" "}
+                  {fav.universities.accepts_transfer ? "✅ Yes" : "❌ No"}
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="text-xl">🌍</span>
+                  <strong>International:</strong>{" "}
+                  {fav.universities.intl_transfer ? "✅ Yes" : "❌ No"}
+                </p>
+                {fav.universities.transfer_url && (
+                  <a
+                    href={fav.universities.transfer_url.trim()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block mt-4 px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-full shadow-md hover:scale-105 transition text-sm"
+                  >
+                    Official Transfer Page →
+                  </a>
+                )}
+              </div>
               className="bg-white p-6 rounded-2xl shadow-md"
             >
               <h2 className="text-2xl font-semibold">

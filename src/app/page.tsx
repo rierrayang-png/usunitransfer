@@ -11,6 +11,21 @@ export default function Home() {
   const [selectedState, setSelectedState] = useState("All");
   const [minGpa, setMinGpa] = useState(0);
   const [selectedType, setSelectedType] = useState("All");
+  const [user, setUser] = useState<User | null>(null);
+  const [favouriteIds, setFavouriteIds] = useState<number[]>([]);
+
+  const fetchFavourites = useCallback(async (userId: string) => {
+    const { data, error } = await supabase
+      .from("favourites")
+      .select("university_id")
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("Error fetching favourites:", error);
+    } else {
+      setFavouriteIds(data?.map((f) => f.university_id) || []);
+    }
+  }, []);
   const [user, setUser] = useState<any>(null);
 
 
@@ -19,20 +34,28 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-  supabase.auth.getUser().then(({ data }) => {
-    setUser(data.user);
-  });
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+      if (data.user) {
+        void fetchFavourites(data.user.id);
+      }
+    });
 
-  const { data: listener } = supabase.auth.onAuthStateChange(
-    (_event, session) => {
-      setUser(session?.user ?? null);
-    }
-  );
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          void fetchFavourites(session.user.id);
+        } else {
+          setFavouriteIds([]);
+        }
+      }
+    );
 
-  return () => {
-    listener.subscription.unsubscribe();
-  };
-}, []);
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, [fetchFavourites]);
 
 
   async function fetchUniversities() {
@@ -48,15 +71,16 @@ export default function Home() {
   }
 
   const states = Array.from(
-  new Set(universities.map((uni) => uni.state))
-);
+    new Set(universities.map((uni) => uni.state?.trim()))
+  ).filter(Boolean).sort();
+
   const filtered = universities.filter((uni) => {
   const matchesName =
     uni.name?.toLowerCase().includes(query.toLowerCase());
 
   const matchesState =
     selectedState === "All" ||
-    uni.state === selectedState;
+    uni.state?.trim() === selectedState;
 
   const matchesGpa =
     Number(uni.min_gpa) <= minGpa;
@@ -104,6 +128,18 @@ export default function Home() {
       <h1 className="text-5xl font-bold bg-gradient-to-r from-pink-600 to-indigo-500 bg-clip-text text-transparent mb-8">
         US Transfer Platform
       </h1>
+
+      <div className="bg-white/50 backdrop-blur-sm p-6 rounded-2xl border border-pink-200 mb-8">
+        <h2 className="text-xl font-bold text-pink-700 mb-2">📖 User Manual: Where and how to log in</h2>
+        <p className="text-gray-700 mb-2 font-medium">Follow these steps to access your account:</p>
+        <ol className="list-decimal list-inside text-gray-600 space-y-1">
+          <li>Locate and click the <span className="font-semibold text-rose-500">Login</span> button in the top-right corner of this page.</li>
+          <li>An input prompt will appear. Enter your registered email address.</li>
+          <li>Check your email inbox (and spam folder) for a <span className="italic">Magic Link</span> from Supabase.</li>
+          <li>Click the link in the email to be securely and automatically logged in.</li>
+          <li>Once logged in, you can click the ★ icon on any university card to save it to your favourites!</li>
+        </ol>
+      </div>
 
       <div className="mb-6">
   <Link
@@ -173,25 +209,58 @@ export default function Home() {
           >
             <div className="flex justify-between items-center mb-2">
   <h2 className="text-2xl font-semibold text-gray-800">
-    {uni.name}
+    {uni.name?.trim()}
   </h2>
 
   {user && (
     <button
       onClick={async () => {
-        await supabase.from("favourites").insert({
-          user_id: user.id,
-          university_id: uni.id,
-        });
-        alert("Added to favourites ⭐");
+        const isFav = favouriteIds.includes(uni.id);
+        if (isFav) {
+          const { error } = await supabase
+            .from("favourites")
+            .delete()
+            .eq("user_id", user.id)
+            .eq("university_id", uni.id);
+          if (!error) {
+            setFavouriteIds((prev) => prev.filter((id) => id !== uni.id));
+          }
+        } else {
+          const { error } = await supabase
+            .from("favourites")
+            .insert({
+              user_id: user.id,
+              university_id: uni.id,
+            });
+          if (!error) {
+            setFavouriteIds((prev) => [...prev, uni.id]);
+          }
+        }
       }}
-      className="text-yellow-500 text-2xl hover:scale-110 transition"
+      className={`${
+        favouriteIds.includes(uni.id) ? "text-yellow-500" : "text-gray-300"
+      } text-2xl hover:scale-110 transition`}
     >
-      ⭐
+      ★
     </button>
   )}
 </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-pink-600">
+              <p className="flex items-center gap-2">
+                <span className="text-xl">📍</span>
+                <strong>State:</strong> {uni.state?.trim()}
+              </p>
+              <p className="flex items-center gap-2">
+                <span className="text-xl">📊</span>
+                <strong>Min GPA:</strong> {uni.min_gpa}
+              </p>
+              <p className="flex items-center gap-2">
+                <span className="text-xl">🏛️</span>
+                <strong>Type:</strong> {uni.type || "N/A"}
+              </p>
+              <p className="flex items-center gap-2">
+                <span className="text-xl">🔄</span>
             <div className="grid grid-cols-2 gap-4 text-pink-600">
               <p><strong>State:</strong> {uni.state}</p>
               <p><strong>Min GPA:</strong> {uni.min_gpa}</p>
@@ -205,7 +274,7 @@ export default function Home() {
               </p>
               {uni.transfer_url && (
   <a
-    href={uni.transfer_url}
+    href={uni.transfer_url.trim()}
     target="_blank"
     rel="noopener noreferrer"
     className="inline-block mt-4 px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-full shadow-md hover:scale-105 transition"
