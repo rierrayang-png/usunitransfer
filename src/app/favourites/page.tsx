@@ -45,8 +45,8 @@ export default function FavouritesPage() {
     if (error) {
       console.error("Error fetching favourites:", error);
     } else {
-      // @ts-expect-error - Supabase join types can be tricky
-      setFavourites(data || []);
+      // Cast the joined data to our Favourite interface
+      setFavourites((data as unknown as Favourite[]) || []);
     }
   }, []);
 
@@ -110,12 +110,12 @@ export default function FavouritesPage() {
                 <span className="text-sm font-medium">Remove</span>
               </button>
               <h2 className="text-2xl font-semibold text-gray-800 mb-2 pr-8">
-                {fav.universities.name}
+                {fav.universities.name?.trim()}
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-pink-600">
                 <p className="flex items-center gap-2">
                   <span className="text-xl">📍</span>
-                  <strong>State:</strong> {fav.universities.state}
+                  <strong>State:</strong> {fav.universities.state?.trim()}
                 </p>
                 <p className="flex items-center gap-2">
                   <span className="text-xl">📊</span>
@@ -137,7 +137,7 @@ export default function FavouritesPage() {
                 </p>
                 {fav.universities.transfer_url && (
                   <a
-                    href={fav.universities.transfer_url}
+                    href={fav.universities.transfer_url.trim()}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-block mt-4 px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-full shadow-md hover:scale-105 transition text-sm"
