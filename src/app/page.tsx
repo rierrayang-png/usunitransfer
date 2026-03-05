@@ -1,22 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
+import { User } from "@supabase/supabase-js";
 
+interface University {
+  id: number;
+  name: string;
+  state: string;
+  min_gpa: number;
+  accepts_transfer: boolean;
+  intl_transfer: boolean;
+  transfer_url: string;
+  type: string | null;
+}
 
 export default function Home() {
-  const [universities, setUniversities] = useState<any[]>([]);
+  const [universities, setUniversities] = useState<University[]>([]);
   const [query, setQuery] = useState("");
   const [selectedState, setSelectedState] = useState("All");
   const [minGpa, setMinGpa] = useState(0);
   const [selectedType, setSelectedType] = useState("All");
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
+  const fetchUniversities = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("universities")
+      .select("*");
+
+    if (error) {
+      console.error("Error fetching data:", error);
+    } else {
+      setUniversities(data || []);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchUniversities();
-  }, []);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchUniversities();
+  }, [fetchUniversities]);
 
   useEffect(() => {
   supabase.auth.getUser().then(({ data }) => {
@@ -35,17 +58,6 @@ export default function Home() {
 }, []);
 
 
-  async function fetchUniversities() {
-    const { data, error } = await supabase
-      .from("universities")
-      .select("*");
-
-    if (error) {
-      console.error("Error fetching data:", error);
-    } else {
-      setUniversities(data || []);
-    }
-  }
 
   const states = Array.from(
   new Set(universities.map((uni) => uni.state))
@@ -104,6 +116,17 @@ export default function Home() {
       <h1 className="text-5xl font-bold bg-gradient-to-r from-pink-600 to-indigo-500 bg-clip-text text-transparent mb-8">
         US Transfer Platform
       </h1>
+
+      <div className="bg-white/50 backdrop-blur-sm p-6 rounded-2xl border border-pink-200 mb-8">
+        <h2 className="text-xl font-bold text-pink-700 mb-2">📖 User Manual</h2>
+        <p className="text-gray-700 mb-2 font-medium">How to log in:</p>
+        <ol className="list-decimal list-inside text-gray-600 space-y-1">
+          <li>Click the <span className="font-semibold text-rose-500">Login</span> button at the top right.</li>
+          <li>Enter your email address in the prompt that appears.</li>
+          <li>Check your email inbox for a magic link.</li>
+          <li>Click the link to be automatically logged in and start saving your favorites!</li>
+        </ol>
+      </div>
 
       <div className="mb-6">
   <Link
@@ -192,16 +215,28 @@ export default function Home() {
   )}
 </div>
 
-            <div className="grid grid-cols-2 gap-4 text-pink-600">
-              <p><strong>State:</strong> {uni.state}</p>
-              <p><strong>Min GPA:</strong> {uni.min_gpa}</p>
-              <p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-pink-600">
+              <p className="flex items-center gap-2">
+                <span className="text-xl">📍</span>
+                <strong>State:</strong> {uni.state}
+              </p>
+              <p className="flex items-center gap-2">
+                <span className="text-xl">📊</span>
+                <strong>Min GPA:</strong> {uni.min_gpa}
+              </p>
+              <p className="flex items-center gap-2">
+                <span className="text-xl">🏛️</span>
+                <strong>Type:</strong> {uni.type || "N/A"}
+              </p>
+              <p className="flex items-center gap-2">
+                <span className="text-xl">🔄</span>
                 <strong>Transfer:</strong>{" "}
                 {uni.accepts_transfer ? "✅ Yes" : "❌ No"}
               </p>
-              <p>
+              <p className="flex items-center gap-2">
+                <span className="text-xl">🌍</span>
                 <strong>International:</strong>{" "}
-                {uni.intl_transfer ? "🌍 Yes" : "❌ No"}
+                {uni.intl_transfer ? "✅ Yes" : "❌ No"}
               </p>
               {uni.transfer_url && (
   <a
