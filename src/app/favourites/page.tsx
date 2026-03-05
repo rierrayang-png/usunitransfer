@@ -103,10 +103,11 @@ export default function FavouritesPage() {
                     );
                   }
                 }}
-                className="absolute top-4 right-4 text-yellow-500 text-2xl hover:scale-110 transition opacity-0 group-hover:opacity-100"
+                className="absolute top-4 right-4 flex items-center gap-1 px-3 py-1 bg-rose-50 text-rose-500 rounded-full border border-rose-100 hover:bg-rose-100 transition shadow-sm group/btn"
                 title="Remove from favourites"
               >
-                ★
+                <span className="text-xl group-hover/btn:scale-110 transition">★</span>
+                <span className="text-sm font-medium">Remove</span>
               </button>
               <h2 className="text-2xl font-semibold text-gray-800 mb-2 pr-8">
                 {fav.universities.name}
