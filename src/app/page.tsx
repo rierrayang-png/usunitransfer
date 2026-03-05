@@ -1,23 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { User } from "@supabase/supabase-js";
 
-interface University {
-  id: number;
-  name: string;
-  state: string;
-  min_gpa: number;
-  accepts_transfer: boolean;
-  intl_transfer: boolean;
-  transfer_url: string;
-  type: string | null;
-}
 
 export default function Home() {
-  const [universities, setUniversities] = useState<University[]>([]);
+  const [universities, setUniversities] = useState<any[]>([]);
   const [query, setQuery] = useState("");
   const [selectedState, setSelectedState] = useState("All");
   const [minGpa, setMinGpa] = useState(0);
@@ -37,23 +26,12 @@ export default function Home() {
       setFavouriteIds(data?.map((f) => f.university_id) || []);
     }
   }, []);
+  const [user, setUser] = useState<any>(null);
 
-  const fetchUniversities = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("universities")
-      .select("*");
-
-    if (error) {
-      console.error("Error fetching data:", error);
-    } else {
-      setUniversities(data || []);
-    }
-  }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void fetchUniversities();
-  }, [fetchUniversities]);
+    fetchUniversities();
+  }, []);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -80,6 +58,17 @@ export default function Home() {
   }, [fetchFavourites]);
 
 
+  async function fetchUniversities() {
+    const { data, error } = await supabase
+      .from("universities")
+      .select("*");
+
+    if (error) {
+      console.error("Error fetching data:", error);
+    } else {
+      setUniversities(data || []);
+    }
+  }
 
   const states = Array.from(
     new Set(universities.map((uni) => uni.state?.trim()))
@@ -272,13 +261,16 @@ export default function Home() {
               </p>
               <p className="flex items-center gap-2">
                 <span className="text-xl">🔄</span>
+            <div className="grid grid-cols-2 gap-4 text-pink-600">
+              <p><strong>State:</strong> {uni.state}</p>
+              <p><strong>Min GPA:</strong> {uni.min_gpa}</p>
+              <p>
                 <strong>Transfer:</strong>{" "}
                 {uni.accepts_transfer ? "✅ Yes" : "❌ No"}
               </p>
-              <p className="flex items-center gap-2">
-                <span className="text-xl">🌍</span>
+              <p>
                 <strong>International:</strong>{" "}
-                {uni.intl_transfer ? "✅ Yes" : "❌ No"}
+                {uni.intl_transfer ? "🌍 Yes" : "❌ No"}
               </p>
               {uni.transfer_url && (
   <a

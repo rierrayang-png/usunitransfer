@@ -1,24 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { User } from "@supabase/supabase-js";
-
-interface University {
-  id: number;
-  name: string;
-  state: string;
-  min_gpa: number;
-  accepts_transfer: boolean;
-  intl_transfer: boolean;
-  transfer_url: string;
-  type: string | null;
-}
-
-interface Favourite {
-  university_id: number;
-  universities: University;
-}
 
 export default function FavouritesPage() {
   const [favourites, setFavourites] = useState<Favourite[]>([]);
@@ -49,6 +32,8 @@ export default function FavouritesPage() {
       setFavourites((data as unknown as Favourite[]) || []);
     }
   }, []);
+  const [favourites, setFavourites] = useState<any[]>([]);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
   async function loadUser() {
@@ -61,7 +46,28 @@ export default function FavouritesPage() {
   }
 
   loadUser();
-}, [fetchFavourites]);
+}, []);
+
+
+  async function fetchFavourites(userId: string) {
+    const { data, error } = await supabase
+  .from("favourites")
+  .select(`
+    university_id,
+    universities (
+      id,
+      name,
+      state,
+      min_gpa
+    )
+  `)
+  .eq("user_id", userId);
+
+console.log("Favourites data:", data);
+console.log("Favourites error:", error);
+
+setFavourites(data || []);
+  }
 
   if (!user) {
     return (
@@ -146,6 +152,13 @@ export default function FavouritesPage() {
                   </a>
                 )}
               </div>
+              className="bg-white p-6 rounded-2xl shadow-md"
+            >
+              <h2 className="text-2xl font-semibold">
+                {fav.universities.name}
+              </h2>
+              <p>State: {fav.universities.state}</p>
+              <p>Min GPA: {fav.universities.min_gpa}</p>
             </div>
           ))}
         </div>
